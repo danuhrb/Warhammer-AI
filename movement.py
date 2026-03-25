@@ -1,106 +1,184 @@
 from __future__ import annotations
 import numpy as np
-from math import atan2, cos, sin, pi
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from shapely.geometry import Point
-from .types import GameState, Unit, Objective, TerrainPiece
-from .geometry import legal_destination, within_move
+from wh_types import Unit, GameState, TerrainPiece, Squad, COHERENCY_RANGE
 
-def _unit_enemy_list(state: GameState, unit: Unit) -> list[Unit]:
-    return [u for u in state.units.values() if u.alive and u.owner != unit.owner]
+NUM_DIRECTIONS = 16
+NUM_DISTANCES = 4
+NUM_MOVE_SLOTS = NUM_DIRECTIONS * NUM_DISTANCES
+MOVE_ANGLES = [i * (2 * np.pi / NUM_DIRECTIONS) for i in range(NUM_DIRECTIONS)]
 
-def _objective_ring_points(obj: Objective, unit: Unit, samples: int = 6) -> np.ndarray:
-    """Points on the ring where the unit's base would touch the objective radius."""
-    angles = np.linspace(0, 2*pi, samples, endpoint=False)
-    ring_r = obj.r + unit.base_r
-    pts = np.stack([obj.pos[0] + ring_r*np.cos(angles), obj.pos[1] + ring_r*np.sin(angles)], axis=1)
-    return pts
 
-def _radial_spokes(unit: Unit, num_dirs: int = 8, dist: float = None) -> np.ndarray:
-    """Spoke endpoints around the unit at a given distance (default=unit.M)."""
-    d = unit.M if dist is None else float(dist)
-    angles = np.linspace(0, 2*pi, num_dirs, endpoint=False)
-    pts = np.stack([unit.pos[0] + d*np.cos(angles), unit.pos[1] + d*np.sin(angles)], axis=1)
-    return pts
+def _collides_terrain(pos: np.ndarray, base_r: float,
+                      terrain: List[TerrainPiece]) -> bool:
+    circle = Point(pos[0], pos[1]).buffer(base_r)
+    for tp in terrain:
+        if tp.blocks_movement and circle.intersects(tp.polygon):
+            return True
+    return False
 
-def _behind_cover_points(state: GameState, unit: Unit, enemies: list[Unit], per_terrain: int = 4, offset: float = 0.75) -> np.ndarray:
-    """
-    Sample points just behind cover relative to enemy centroid.
-    We pick several points along each blocking polygon's exterior and nudge away from enemies.
-    """
-    if not enemies:
-        return np.empty((0,2))
-    enemy_centroid = np.mean(np.stack([e.pos for e in enemies], axis=0), axis=0)
-    pts = []
-    for t in state.terrain:
-        if not t.blocks_los:
+
+def _collides_units(pos: np.ndarray, base_r: float, unit_id: int,
+                    all_units: dict, margin: float = 0.1) -> bool:
+    for uid, other in all_units.items():
+        if uid == unit_id or not other.alive:
             continue
-        coords = np.array(t.polygon.exterior.coords)
-        # pick evenly spaced vertices
-        idxs = np.round(np.linspace(0, len(coords)-1, per_terrain, endpoint=False)).astype(int)
-        for i in idxs:
-            p = coords[i]
-            v = np.array(p) - enemy_centroid
-            n = v / (np.linalg.norm(v) + 1e-9)
-            candidate = np.array(p) + n * (unit.base_r + offset)
-            pts.append(candidate)
-    if not pts:
-        return np.empty((0,2))
-    return np.stack(pts, axis=0)
+        dist = np.linalg.norm(pos - other.pos)
+        if dist < base_r + other.base_r + margin:
+            return True
+    return False
 
-def movement_candidates(state: GameState, unit: Unit, k: int | None = None) -> np.ndarray:
+
+def _in_bounds(pos: np.ndarray, base_r: float,
+               table_w: float, table_h: float) -> bool:
+    return (base_r <= pos[0] <= table_w - base_r and
+            base_r <= pos[1] <= table_h - base_r)
+
+
+# ------------------------------------------------------------------
+# Coherency
+# ------------------------------------------------------------------
+
+def check_coherency(unit: Unit, state: GameState,
+                    proposed_pos: Optional[np.ndarray] = None) -> bool:
     """
-    Generate destination candidates within unit.M, filtered for collisions.
-    Mixes: objective ring entries, behind-cover samples, and radial spokes.
-    Returns up to k candidates (default state.cfg.max_candidates), sorted by a simple heuristic:
-      (more cover vs enemies) -> (greater min distance to enemies) -> (closer to nearest objective)
+    Check if a model satisfies squad coherency.
+    A model is coherent if it is within COHERENCY_RANGE of at least one
+    other alive model in its squad. Single-model squads always pass.
+    If proposed_pos is given, check coherency as if the unit were at that
+    position instead of its current one.
     """
-    max_k = state.cfg.max_candidates if k is None else int(k)
-    enemies = _unit_enemy_list(state, unit)
+    if unit.squad_id < 0:
+        return True
 
-    # raw candidates
-    pts = []
-    # objective ring entries
-    for obj in state.objectives:
-        pts.append(_objective_ring_points(obj, unit, samples=6))
-    # behind cover relative to enemies
-    pts.append(_behind_cover_points(state, unit, enemies, per_terrain=4))
-    # radial spokes at full and 60% move
-    pts.append(_radial_spokes(unit, num_dirs=8, dist=unit.M))
-    pts.append(_radial_spokes(unit, num_dirs=8, dist=0.6*unit.M))
+    squad = state.squads.get(unit.squad_id)
+    if squad is None:
+        return True
 
-    if not pts:
-        return np.empty((0,2))
-    cand = np.concatenate([p for p in pts if p.size > 0], axis=0)
+    squad_members = squad.all_member_ids()
+    alive_others = [
+        uid for uid in squad_members
+        if uid != unit.id and state.units[uid].alive
+    ]
+    if len(alive_others) == 0:
+        return True
 
-    # keep only within move and legal destination
-    legal = []
-    for p in cand:
-        if within_move(unit, p) and legal_destination(state, unit, p):
-            legal.append(p)
-    if not legal:
-        return np.empty((0,2))
-    legal = np.unique(np.round(np.stack(legal, axis=0), 3), axis=0)  # dedupe to ~1mm
+    pos = proposed_pos if proposed_pos is not None else unit.pos
+    coh = state.cfg.coherency_range
 
-    # scoring heuristic
-    # 1) cover: how many enemies lose LOS to this position
-    from .los import cover_score
-    cover = np.array([cover_score(state, p, enemies) for p in legal], dtype=float)
-    # 2) safety: min edge distance to any enemy
-    if enemies:
-        enemy_xy = np.stack([e.pos for e in enemies], axis=0)
-        dists = np.linalg.norm(legal[:,None,:] - enemy_xy[None,:,:], axis=2)  # [P,E]
-        min_center = dists.min(axis=1)
-    else:
-        min_center = np.full((len(legal),), 1e6)
-    # 3) objective closeness (smaller is better)
-    if state.objectives:
-        obj_xy = np.stack([o.pos for o in state.objectives], axis=0)
-        d_obj = np.linalg.norm(legal[:,None,:] - obj_xy[None,:,:], axis=2).min(axis=1)
-    else:
-        d_obj = np.zeros((len(legal),))
+    for other_id in alive_others:
+        other = state.units[other_id]
+        dist = np.linalg.norm(pos - other.pos)
+        if dist <= coh + unit.base_r + other.base_r:
+            return True
 
-    # combine: sort by (-cover, -min_center, +d_obj)
-    order = np.lexsort((d_obj, -min_center, -cover))
-    out = legal[order][:max_k]
-    return out
+    return False
+
+
+def squad_is_coherent(squad: Squad, state: GameState) -> bool:
+    """Check if every alive model in the squad is coherent."""
+    alive_ids = [uid for uid in squad.all_member_ids()
+                 if state.units[uid].alive]
+    if len(alive_ids) <= 1:
+        return True
+    for uid in alive_ids:
+        if not check_coherency(state.units[uid], state):
+            return False
+    return True
+
+
+# ------------------------------------------------------------------
+# Movement
+# ------------------------------------------------------------------
+
+def get_move_candidates(unit: Unit, state: GameState) -> List[np.ndarray]:
+    """
+    Generate candidate move destinations sampled from the full movement
+    circle (radius = unit.M). Returns up to NUM_DIRECTIONS * NUM_DISTANCES
+    valid positions. Positions are ordered [angle_0_dist_0, angle_0_dist_1,
+    ..., angle_N_dist_M] so the RL agent has a stable index mapping.
+
+    Coherency is NOT checked here -- in 40K you move the whole unit at once,
+    so per-model coherency checks during movement are too restrictive.
+    Coherency is checked at the end of the movement phase instead.
+    """
+    candidates: List[np.ndarray] = []
+    tw, th = state.cfg.table_size
+    steps = np.linspace(unit.M / NUM_DISTANCES, unit.M, NUM_DISTANCES)
+
+    for angle in MOVE_ANGLES:
+        direction = np.array([np.cos(angle), np.sin(angle)])
+        for dist in steps:
+            new_pos = unit.pos + direction * dist
+            if (not _in_bounds(new_pos, unit.base_r, tw, th)
+                    or _collides_terrain(new_pos, unit.base_r, state.terrain)
+                    or _collides_units(new_pos, unit.base_r, unit.id,
+                                       state.units, state.cfg.move_margin)):
+                candidates.append(None)
+            else:
+                candidates.append(new_pos)
+
+    return candidates
+
+
+def move_unit(unit: Unit, new_pos: np.ndarray, state: GameState) -> bool:
+    """
+    Attempt to move a unit to new_pos. Validates distance, bounds,
+    and collisions. Coherency is not enforced per-move (checked at
+    end of movement phase instead, matching 40K rules for unit-level movement).
+    """
+    dist = np.linalg.norm(new_pos - unit.pos)
+    if dist > unit.M + 1e-9:
+        return False
+
+    tw, th = state.cfg.table_size
+    if not _in_bounds(new_pos, unit.base_r, tw, th):
+        return False
+    if _collides_terrain(new_pos, unit.base_r, state.terrain):
+        return False
+    if _collides_units(new_pos, unit.base_r, unit.id,
+                       state.units, state.cfg.move_margin):
+        return False
+
+    unit.pos = new_pos.copy()
+    return True
+
+
+def get_charge_targets(unit: Unit, state: GameState,
+                       charge_range: float = 12.0) -> List[int]:
+    """Return IDs of enemy units within charge range."""
+    targets = []
+    for uid, other in state.units.items():
+        if other.owner == unit.owner or not other.alive:
+            continue
+        dist = np.linalg.norm(unit.pos - other.pos)
+        if dist <= charge_range:
+            targets.append(uid)
+    return targets
+
+
+def execute_charge(unit: Unit, target: Unit, state: GameState,
+                   rng: np.random.RandomState) -> bool:
+    """
+    Roll 2d6 for charge distance. If enough to reach engagement range (1"),
+    move into base contact. Coherency is relaxed during charges per 40K rules
+    (you must attempt to maintain it but the charge itself isn't blocked by it).
+    """
+    charge_roll = int(rng.randint(1, 7)) + int(rng.randint(1, 7))
+    dist_to_target = np.linalg.norm(unit.pos - target.pos)
+    engagement_range = unit.base_r + target.base_r + 1.0
+
+    if charge_roll >= dist_to_target - engagement_range:
+        direction = target.pos - unit.pos
+        direction = direction / (np.linalg.norm(direction) + 1e-9)
+        contact_pos = target.pos - direction * (unit.base_r + target.base_r + 0.1)
+        unit.pos = contact_pos.copy()
+        return True
+    return False
+
+
+def is_in_engagement(unit: Unit, target: Unit) -> bool:
+    """True if the two units are within 1\" engagement range."""
+    dist = np.linalg.norm(unit.pos - target.pos)
+    return dist <= unit.base_r + target.base_r + 1.0

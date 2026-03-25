@@ -1,3 +1,11 @@
 numpy>=1.24
 shapely>=2.0
 gymnasium>=0.29
+stable-baselines3>=2.0
+sb3-contrib>=2.0
+torch>=2.0
+tensorboard
+pettingzoo>=1.24
+supersuit>=3.9
+matplotlib
+flask>=3.0
