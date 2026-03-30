@@ -514,7 +514,6 @@ def build_army(templates: List[dict],
                priority_order: List[int],
                owner: int,
                points_limit: int = 1000,
-               max_models: int = 20,
                table_size: Tuple[float, float] = (44.0, 60.0),
                ) -> Tuple[List[Unit], List[Squad]]:
     """
@@ -529,7 +528,6 @@ def build_army(templates: List[dict],
     uid = owner * 100
     sid = owner * 10
     spent = 0
-    model_count = 0
 
     margin = 1.5  # base radius buffer from edge
     if owner == 0:
@@ -547,10 +545,7 @@ def build_army(templates: List[dict],
 
     for idx in priority_order:
         t = templates[idx]
-        squad_models = t["model_count"] + (1 if t["leader_fn"] else 0)
         if spent + t["points"] > points_limit:
-            continue
-        if model_count + squad_models > max_models:
             continue
 
         spacing = t["spacing"] or 2.0
@@ -578,11 +573,22 @@ def build_army(templates: List[dict],
         all_squads.append(squad)
         sid += 1
         spent += t["points"]
-        model_count += squad_models
         cursor_x += squad_width + 1.5
         row_height = max(row_height, squad_height)
 
     return all_units, all_squads
+
+
+def build_army_from_selection(templates: List[dict],
+                              selected_indices: List[int],
+                              owner: int,
+                              points_limit: int = 1000,
+                              table_size: Tuple[float, float] = (44.0, 60.0),
+                              ) -> Tuple[List[Unit], List[Squad]]:
+    """Build an army from user-selected template indices."""
+    return build_army(templates, selected_indices, owner,
+                      points_limit=points_limit,
+                      table_size=table_size)
 
 
 def army_points(squads: List[Squad]) -> int:

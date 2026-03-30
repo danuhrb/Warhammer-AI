@@ -7,7 +7,7 @@ training agent challenged.
 """
 from __future__ import annotations
 import os
-from typing import List
+from typing import List, Optional
 import numpy as np
 from stable_baselines3.common.callbacks import BaseCallback
 
@@ -18,15 +18,19 @@ class SelfPlayCallback(BaseCallback):
       1. Save the current model as a new generation in `opponent_dir`.
       2. Rebuild the opponent pool from all saved checkpoints.
       3. Update the environment's opponent function to sample from the pool.
+
+    The opponent model is cached in memory and only reloaded when the
+    pool is updated, avoiding disk I/O on every action.
     """
 
-    def __init__(self, save_freq: int = 20_000,
+    def __init__(self, save_freq: int = 50_000,
                  opponent_dir: str = "opponents",
                  verbose: int = 0):
         super().__init__(verbose)
         self.save_freq = save_freq
         self.opponent_dir = opponent_dir
         self.generation = 0
+        self._cached_model = None
         os.makedirs(opponent_dir, exist_ok=True)
 
     def _on_step(self) -> bool:
@@ -51,23 +55,35 @@ class SelfPlayCallback(BaseCallback):
         return files
 
     def _update_env_opponent(self, pool: List[str]):
-        """Set the env's opponent to sample from saved models."""
+        """Pick one opponent from the pool, cache it, and set it on the env."""
         if not pool:
             return
 
         from sb3_contrib import MaskablePPO
 
-        def opponent_fn(obs, mask):
-            weights = np.arange(1, len(pool) + 1, dtype=float)
-            weights /= weights.sum()
-            chosen_path = np.random.choice(pool, p=weights)
+        weights = np.arange(1, len(pool) + 1, dtype=float)
+        weights /= weights.sum()
+        chosen_path = np.random.choice(pool, p=weights)
 
-            try:
-                opponent_model = MaskablePPO.load(chosen_path)
-                action, _ = opponent_model.predict(obs, action_masks=mask)
-                return action
-            except Exception:
-                return _random_fallback(obs, mask)
+        try:
+            self._cached_model = MaskablePPO.load(chosen_path)
+            if self.verbose:
+                print(f"[SelfPlay] loaded opponent: {os.path.basename(chosen_path)}")
+        except Exception as e:
+            if self.verbose:
+                print(f"[SelfPlay] failed to load {chosen_path}: {e}")
+            self._cached_model = None
+
+        cached = self._cached_model
+
+        def opponent_fn(obs, mask):
+            if cached is not None:
+                try:
+                    action, _ = cached.predict(obs, action_masks=mask)
+                    return action
+                except Exception:
+                    pass
+            return _random_fallback(obs, mask)
 
         try:
             self.training_env.env_method("set_opponent_fn", opponent_fn)

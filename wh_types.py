@@ -37,6 +37,7 @@ class Unit:
     squad_id: int = -1         # which Squad this model belongs to (-1 = none)
     is_leader: bool = False    # True if this is a leader/character model
     alive: bool = True
+    advanced: bool = False     # True if this model advanced this turn (cannot shoot/charge)
 
 
 @dataclass
@@ -60,9 +61,11 @@ class Squad:
 @dataclass
 class TerrainPiece:
     polygon: Polygon           # Shapely polygon in table coords (inches)
-    height: int                # height class
+    height: int                # height class (3 = floor-to-sky building)
     blocks_los: bool = True
     blocks_movement: bool = True
+    provides_cover: bool = True  # +1 to save for targets behind this
+    terrain_type: str = "rect"   # "rect", "square", "L"
 
 
 @dataclass

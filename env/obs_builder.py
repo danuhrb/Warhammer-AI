@@ -8,16 +8,19 @@ from movement import check_coherency
 
 # pos_x, pos_y, alive, wounds, max_wounds, toughness, save, M, OC,
 # base_r, height, weapon_range_max, weapon_damage_max,
-# squad_id_norm, is_leader, coherent
-UNIT_FEATURES = 16
+# squad_id_norm, is_leader, coherent, advanced
+UNIT_FEATURES = 17
 GLOBAL_FEATURES = 7  # phase(4 one-hot) + turn_norm + vp_0 + vp_1
 MAX_OBJECTIVES = 3
 OBJ_FEATURES = 3     # x, y, radius
+MAX_TERRAIN = 8
+TERRAIN_FEATURES = 5  # center_x, center_y, width, height, provides_cover
 
 OBS_SIZE = (
     MAX_UNITS_PER_PLAYER * UNIT_FEATURES * 2
     + GLOBAL_FEATURES
     + MAX_OBJECTIVES * OBJ_FEATURES
+    + MAX_TERRAIN * TERRAIN_FEATURES
     + MAX_UNITS_PER_PLAYER  # distances to nearest enemy per own unit
 )
 
@@ -63,6 +66,7 @@ def encode_observation(engine: GameEngine, player_id: int) -> np.ndarray:
                 obs[base + 13] = (u.squad_id % 10) / 10.0 if u.squad_id >= 0 else 0.0
                 obs[base + 14] = 1.0 if u.is_leader else 0.0
                 obs[base + 15] = 1.0 if (u.alive and check_coherency(u, state)) else 0.0
+                obs[base + 16] = 1.0 if u.advanced else 0.0
 
     _encode_units(own_ids, 0)
     _encode_units(enemy_ids, MAX_UNITS_PER_PLAYER * UNIT_FEATURES)
@@ -88,6 +92,22 @@ def encode_observation(engine: GameEngine, player_id: int) -> np.ndarray:
             obs[base + 1] = obj.pos[1] / scale_pos
             obs[base + 2] = obj.r / 5.0
     idx += MAX_OBJECTIVES * OBJ_FEATURES
+
+    for ti in range(MAX_TERRAIN):
+        base = idx + ti * TERRAIN_FEATURES
+        if ti < len(state.terrain):
+            tp = state.terrain[ti]
+            bounds = tp.polygon.bounds  # (minx, miny, maxx, maxy)
+            cx = (bounds[0] + bounds[2]) / 2.0
+            cy = (bounds[1] + bounds[3]) / 2.0
+            bw = bounds[2] - bounds[0]
+            bh = bounds[3] - bounds[1]
+            obs[base + 0] = cx / scale_pos
+            obs[base + 1] = cy / scale_pos
+            obs[base + 2] = bw / scale_pos
+            obs[base + 3] = bh / scale_pos
+            obs[base + 4] = 1.0 if tp.provides_cover else 0.0
+    idx += MAX_TERRAIN * TERRAIN_FEATURES
 
     for i in range(MAX_UNITS_PER_PLAYER):
         if i < len(own_ids):

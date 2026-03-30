@@ -159,23 +159,42 @@ def get_charge_targets(unit: Unit, state: GameState,
 
 
 def execute_charge(unit: Unit, target: Unit, state: GameState,
-                   rng: np.random.RandomState) -> bool:
+                   rng: np.random.RandomState) -> Tuple[bool, int, float]:
     """
     Roll 2d6 for charge distance. If enough to reach engagement range (1"),
     move into base contact. Coherency is relaxed during charges per 40K rules
     (you must attempt to maintain it but the charge itself isn't blocked by it).
+
+    Returns (succeeded, charge_roll, distance_needed).
     """
     charge_roll = int(rng.randint(1, 7)) + int(rng.randint(1, 7))
     dist_to_target = np.linalg.norm(unit.pos - target.pos)
     engagement_range = unit.base_r + target.base_r + 1.0
+    needed = dist_to_target - engagement_range
 
-    if charge_roll >= dist_to_target - engagement_range:
+    if charge_roll >= needed:
         direction = target.pos - unit.pos
         direction = direction / (np.linalg.norm(direction) + 1e-9)
         contact_pos = target.pos - direction * (unit.base_r + target.base_r + 0.1)
         unit.pos = contact_pos.copy()
-        return True
-    return False
+        return True, charge_roll, needed
+    return False, charge_roll, needed
+
+
+def execute_charge_manual(unit: Unit, target: Unit, state: GameState,
+                          charge_roll: int) -> Tuple[bool, float]:
+    """Execute a charge with a player-provided 2d6 roll. Returns (succeeded, needed)."""
+    dist_to_target = np.linalg.norm(unit.pos - target.pos)
+    engagement_range = unit.base_r + target.base_r + 1.0
+    needed = dist_to_target - engagement_range
+
+    if charge_roll >= needed:
+        direction = target.pos - unit.pos
+        direction = direction / (np.linalg.norm(direction) + 1e-9)
+        contact_pos = target.pos - direction * (unit.base_r + target.base_r + 0.1)
+        unit.pos = contact_pos.copy()
+        return True, needed
+    return False, needed
 
 
 def is_in_engagement(unit: Unit, target: Unit) -> bool:

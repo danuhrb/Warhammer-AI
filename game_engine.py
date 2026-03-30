@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Tuple, Any
 import numpy as np
 
 from wh_types import GameState, GameConfig, Unit, Weapon, TerrainPiece, Objective, Squad
-from combat import resolve_shooting, within_range
+from combat import resolve_shooting, within_range, _allocate_damage, _get_allocation_order, _update_squad_alive
 from core import resolve_melee, get_targets_in_range, get_melee_targets
 from los import has_los
 from movement import (
@@ -54,6 +54,8 @@ class StepResult:
     damage_taken: int = 0
     units_killed: int = 0
     charge_succeeded: bool = False
+    charge_roll: int = 0
+    charge_needed: float = 0.0
     detail: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -162,6 +164,10 @@ class GameEngine:
 
                 if self.turn > MAX_TURNS:
                     self._end_game()
+
+        if self.current_phase == Phase.MOVEMENT:
+            for uid in self._player_units[self.current_player]:
+                self.state.units[uid].advanced = False
 
         self.state.phase = PHASE_NAMES[self.current_phase]
         self._precompute_moves()
@@ -280,9 +286,179 @@ class GameEngine:
         result.valid = success
         return result
 
+    def execute_shoot_manual(self, unit_id: int, target_unit_idx: int,
+                             hits: int, wounds: int, failed_saves: int) -> StepResult:
+        """Human manual shooting: player provides combined dice results for all weapons."""
+        result = StepResult()
+        if self.current_phase != Phase.SHOOTING:
+            result.valid = False
+            return result
+        unit = self.state.units.get(unit_id)
+        if unit is None or not unit.alive or unit.owner != self.current_player:
+            result.valid = False
+            return result
+        if unit_id in self._units_acted or unit.advanced:
+            result.valid = False
+            return result
+
+        enemy_pid = 1 - self.current_player
+        enemy_ids = self._player_units[enemy_pid]
+        if target_unit_idx >= len(enemy_ids):
+            result.valid = False
+            return result
+        target = self.state.units[enemy_ids[target_unit_idx]]
+        if not target.alive:
+            result.valid = False
+            return result
+
+        max_dmg = max((w.damage for w in unit.weapons if w.range > 0), default=1)
+        damage_pool = failed_saves * max_dmg
+
+        squad = self.state.squads.get(target.squad_id) if target.squad_id >= 0 else None
+        if squad is not None and squad.alive:
+            alloc_order = _get_allocation_order(squad, self.state, unit)
+            alloc_result = _allocate_damage(damage_pool, alloc_order, self.state, max_dmg)
+            _update_squad_alive(squad, self.state)
+            result.damage_dealt = alloc_result["damage_applied"]
+            result.units_killed = alloc_result["models_killed"]
+        else:
+            target.W = max(0, target.W - damage_pool)
+            if target.W == 0:
+                target.alive = False
+                result.units_killed = 1
+            result.damage_dealt = damage_pool
+
+        self._damage_this_step = {0: 0, 1: 0}
+        self._damage_this_step[enemy_pid] += result.damage_dealt
+        self._units_acted.add(unit_id)
+        self.check_tabled()
+        return result
+
+    def execute_charge_manual(self, unit_id: int, target_unit_idx: int,
+                              charge_roll: int) -> StepResult:
+        """Human manual charge: player provides 2d6 result."""
+        result = StepResult()
+        if self.current_phase != Phase.CHARGE:
+            result.valid = False
+            return result
+        unit = self.state.units.get(unit_id)
+        if unit is None or not unit.alive or unit.owner != self.current_player:
+            result.valid = False
+            return result
+        if unit_id in self._units_acted or unit.advanced:
+            result.valid = False
+            return result
+
+        enemy_pid = 1 - self.current_player
+        enemy_ids = self._player_units[enemy_pid]
+        if target_unit_idx >= len(enemy_ids):
+            result.valid = False
+            return result
+        target = self.state.units[enemy_ids[target_unit_idx]]
+        if not target.alive:
+            result.valid = False
+            return result
+
+        from movement import execute_charge_manual as _ecm
+        succeeded, needed = _ecm(unit, target, self.state, charge_roll)
+        result.charge_succeeded = succeeded
+        result.charge_roll = charge_roll
+        result.charge_needed = needed
+        self._units_acted.add(unit_id)
+        self.check_tabled()
+        return result
+
+    def execute_fight_manual(self, unit_id: int, target_unit_idx: int,
+                             hits: int, wounds: int, failed_saves: int) -> StepResult:
+        """Human manual fight: player provides combined dice results for all melee weapons."""
+        result = StepResult()
+        if self.current_phase != Phase.FIGHT:
+            result.valid = False
+            return result
+        unit = self.state.units.get(unit_id)
+        if unit is None or not unit.alive or unit.owner != self.current_player:
+            result.valid = False
+            return result
+        if unit_id in self._units_acted:
+            result.valid = False
+            return result
+
+        enemy_pid = 1 - self.current_player
+        enemy_ids = self._player_units[enemy_pid]
+        if target_unit_idx >= len(enemy_ids):
+            result.valid = False
+            return result
+        target = self.state.units[enemy_ids[target_unit_idx]]
+        if not target.alive:
+            result.valid = False
+            return result
+
+        if not is_in_engagement(unit, target):
+            result.valid = False
+            return result
+
+        max_dmg = max((w.damage for w in unit.weapons if w.range <= 0), default=1)
+        damage_pool = failed_saves * max_dmg
+
+        squad = self.state.squads.get(target.squad_id) if target.squad_id >= 0 else None
+        if squad is not None and squad.alive:
+            alloc_order = _get_allocation_order(squad, self.state, unit)
+            alloc_result = _allocate_damage(damage_pool, alloc_order, self.state, max_dmg)
+            _update_squad_alive(squad, self.state)
+            result.damage_dealt = alloc_result["damage_applied"]
+            result.units_killed = alloc_result["models_killed"]
+        else:
+            target.W = max(0, target.W - damage_pool)
+            if target.W == 0:
+                target.alive = False
+                result.units_killed = 1
+            result.damage_dealt = damage_pool
+
+        self._damage_this_step = {0: 0, 1: 0}
+        self._damage_this_step[enemy_pid] += result.damage_dealt
+        self._units_acted.add(unit_id)
+        self.check_tabled()
+        return result
+
+    def execute_advance(self, unit_id: int) -> StepResult:
+        """Advance a squad: roll D6, extend M for all squad members, mark as advanced.
+        Models are NOT marked as acted so they can still be dragged to move."""
+        result = StepResult()
+        if self.current_phase != Phase.MOVEMENT:
+            result.valid = False
+            return result
+        unit = self.state.units.get(unit_id)
+        if unit is None or not unit.alive or unit.owner != self.current_player:
+            result.valid = False
+            return result
+        if unit_id in self._units_acted or unit.advanced:
+            result.valid = False
+            return result
+
+        advance_roll = int(self.rng.randint(1, 7))
+        result.detail["advance_roll"] = advance_roll
+
+        if unit.squad_id >= 0 and unit.squad_id in self.state.squads:
+            squad = self.state.squads[unit.squad_id]
+            for mid in squad.all_member_ids():
+                m = self.state.units[mid]
+                if m.alive:
+                    m.M += advance_roll
+                    m.advanced = True
+        else:
+            unit.M += advance_roll
+            unit.advanced = True
+
+        self._move_cache.clear()
+        self._precompute_moves()
+        return result
+
     def _execute_shoot(self, unit: Unit, target_unit_idx: int) -> StepResult:
         result = StepResult()
         if self.current_phase != Phase.SHOOTING:
+            result.valid = False
+            return result
+        if unit.advanced:
             result.valid = False
             return result
 
@@ -317,6 +493,9 @@ class GameEngine:
         if self.current_phase != Phase.CHARGE:
             result.valid = False
             return result
+        if unit.advanced:
+            result.valid = False
+            return result
 
         enemy_pid = 1 - self.current_player
         enemy_ids = self._player_units[enemy_pid]
@@ -329,7 +508,10 @@ class GameEngine:
             result.valid = False
             return result
 
-        result.charge_succeeded = execute_charge(unit, target, self.state, self.rng)
+        succeeded, roll, needed = execute_charge(unit, target, self.state, self.rng)
+        result.charge_succeeded = succeeded
+        result.charge_roll = roll
+        result.charge_needed = needed
         return result
 
     def _execute_fight(self, unit: Unit, target_unit_idx: int) -> StepResult:
@@ -374,10 +556,17 @@ class GameEngine:
 
     def _precompute_moves(self) -> None:
         self._move_cache.clear()
+
+        pid = self.current_player
+        my_ids = self._player_units[pid]
+        for i, uid in enumerate(my_ids):
+            if i >= MAX_UNITS_PER_PLAYER:
+                self._units_acted.add(uid)
+
         if self.current_phase != Phase.MOVEMENT:
             return
 
-        for uid in self._player_units[self.current_player]:
+        for uid in my_ids[:MAX_UNITS_PER_PLAYER]:
             unit = self.state.units[uid]
             if unit.alive:
                 self._move_cache[uid] = get_move_candidates(unit, self.state)
@@ -405,25 +594,27 @@ class GameEngine:
                 legal[Action.MOVE] = valid_idxs
 
         elif self.current_phase == Phase.SHOOTING:
-            ranged_weapons = [w for w in unit.weapons if w.range > 0]
-            if ranged_weapons:
-                for ei, eid in enumerate(enemy_ids):
-                    enemy = self.state.units[eid]
-                    if not enemy.alive:
-                        continue
-                    can_shoot = any(
-                        within_range(unit, enemy, w) and has_los(self.state, unit, enemy)
-                        for w in ranged_weapons
-                    )
-                    if can_shoot:
-                        legal.setdefault(Action.SHOOT, []).append(ei)
+            if not unit.advanced:
+                ranged_weapons = [w for w in unit.weapons if w.range > 0]
+                if ranged_weapons:
+                    for ei, eid in enumerate(enemy_ids):
+                        enemy = self.state.units[eid]
+                        if not enemy.alive:
+                            continue
+                        can_shoot = any(
+                            within_range(unit, enemy, w) and has_los(self.state, unit, enemy)
+                            for w in ranged_weapons
+                        )
+                        if can_shoot:
+                            legal.setdefault(Action.SHOOT, []).append(ei)
 
         elif self.current_phase == Phase.CHARGE:
-            charge_ids = get_charge_targets(unit, self.state)
-            for eid in charge_ids:
-                if eid in enemy_ids:
-                    ei = enemy_ids.index(eid)
-                    legal.setdefault(Action.CHARGE, []).append(ei)
+            if not unit.advanced:
+                charge_ids = get_charge_targets(unit, self.state)
+                for eid in charge_ids:
+                    if eid in enemy_ids:
+                        ei = enemy_ids.index(eid)
+                        legal.setdefault(Action.CHARGE, []).append(ei)
 
         elif self.current_phase == Phase.FIGHT:
             melee_weapons = [w for w in unit.weapons if w.range <= 0]

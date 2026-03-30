@@ -30,7 +30,9 @@ body {
   border-radius: 12px;
   padding: 32px 48px;
   text-align: center;
-  max-width: 420px;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 #pregame-box h2 {
   color: #e94560;
@@ -70,6 +72,114 @@ body {
 }
 #btn-go-second:hover { background: #2b4d46; }
 
+/* Roster builder inside pregame */
+#roster-section { display: none; }
+.roster-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  margin-bottom: 4px;
+  background: #1a2744;
+  border: 1px solid #0f3460;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  text-align: left;
+  transition: background 0.15s;
+}
+.roster-item:hover { background: #2a3754; }
+.roster-item.selected { border-color: #e94560; background: #2d1b36; }
+.roster-item input[type="checkbox"] { flex-shrink: 0; }
+.roster-name { flex: 1; }
+.roster-pts { color: #e94560; font-weight: bold; min-width: 40px; text-align: right; }
+.roster-models { color: #888; font-size: 11px; min-width: 60px; text-align: right; }
+#roster-total {
+  padding: 8px;
+  font-size: 14px;
+  font-weight: bold;
+  color: #e94560;
+  border-top: 1px solid #0f3460;
+  margin-top: 8px;
+}
+#btn-confirm-roster {
+  background: #2d1b36;
+  color: #e94560;
+  border-color: #e94560;
+  margin-top: 12px;
+}
+
+/* -- Modal overlay for dice input -- */
+#dice-modal {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.8);
+  z-index: 300;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+#dice-modal-box {
+  background: #16213e;
+  border: 2px solid #0f3460;
+  border-radius: 12px;
+  padding: 24px 32px;
+  max-width: 440px;
+  width: 90%;
+}
+#dice-modal-box h3 {
+  color: #e94560;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  font-size: 16px;
+}
+.dice-info {
+  font-size: 12px;
+  color: #aaa;
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+.dice-info b { color: #4ecdc4; }
+.dice-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.dice-row label { flex: 1; font-size: 13px; }
+.dice-row input {
+  width: 60px;
+  padding: 6px;
+  border: 1px solid #0f3460;
+  border-radius: 4px;
+  background: #1a1a2e;
+  color: #fff;
+  font-size: 14px;
+  text-align: center;
+}
+#dice-submit {
+  margin-top: 12px;
+  background: #2d1b36;
+  color: #e94560;
+  border: 2px solid #e94560;
+  padding: 10px 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 14px;
+  width: 100%;
+}
+#dice-cancel {
+  margin-top: 6px;
+  background: transparent;
+  color: #666;
+  border: 1px solid #333;
+  padding: 8px 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  width: 100%;
+}
+
 /* -- Sidebar -- */
 #sidebar {
   width: 360px;
@@ -87,6 +197,28 @@ body {
   color: #e94560;
   letter-spacing: 2px;
   text-transform: uppercase;
+  position: relative;
+}
+#god-mode-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 10px;
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 3px;
+  border: 1px solid #555;
+  background: transparent;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 0.2s;
+}
+#god-mode-toggle.active {
+  background: #ffd700;
+  color: #000;
+  border-color: #ffd700;
 }
 #info-bar {
   display: flex;
@@ -112,6 +244,7 @@ body {
 .your-turn { background: #2d1b36; color: #e94560; }
 .ai-turn { background: #1b2d36; color: #4ecdc4; }
 .game-over-bar { background: #3d1b1b; color: #ffd700; }
+.deploy-phase { background: #1b3d1b; color: #4ecdc4; }
 
 #move-hint {
   display: none;
@@ -146,6 +279,8 @@ button {
 #btn-ai-step:hover { background: #2b5d46; }
 #btn-reset { background: #353; color: #4ecdc4; }
 #btn-reset:hover { background: #474; }
+#btn-confirm-deploy { background: #1b3d1b; color: #4ecdc4; }
+#btn-confirm-deploy:hover { background: #2b5d2b; }
 button:disabled { opacity: 0.4; cursor: not-allowed; }
 
 #unit-detail {
@@ -158,6 +293,27 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 #unit-detail h3 { font-size: 14px; margin-bottom: 4px; }
 .stat-row { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0; }
 .stat { background: #0f3460; padding: 2px 6px; border-radius: 3px; font-size: 11px; }
+.god-input {
+  width: 40px;
+  padding: 2px 4px;
+  background: #1a1a2e;
+  border: 1px solid #ffd700;
+  color: #ffd700;
+  border-radius: 3px;
+  font-size: 11px;
+  text-align: center;
+}
+#god-save-btn {
+  margin-top: 6px;
+  padding: 4px 12px;
+  background: #ffd700;
+  color: #000;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 11px;
+}
 
 #actions-panel {
   flex: 1;
@@ -190,6 +346,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 .action-btn.charge { border-left: 3px solid #ffd700; }
 .action-btn.fight { border-left: 3px solid #ff6b6b; }
 .action-btn.pass { border-left: 3px solid #666; }
+.action-btn.advance-btn { border-left: 3px solid #4ecdc4; background: #1b2d36; }
 .action-filter {
   display: flex;
   gap: 4px;
@@ -233,6 +390,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
   overflow: auto;
 }
 canvas { border: 2px solid #0f3460; }
+canvas.god-active { border-color: #ffd700; }
 #tooltip {
   position: absolute;
   display: none;
@@ -249,18 +407,39 @@ canvas { border: 2px solid #0f3460; }
 </head>
 <body>
 
-<!-- Pregame overlay: choose who goes first -->
+<!-- Pregame overlay -->
 <div id="pregame-overlay">
   <div id="pregame-box">
     <h2>Warhammer 40K</h2>
     <p>Tau (AI) vs Blood Angels (You)</p>
-    <button class="pregame-btn" id="btn-go-first">I Go First</button>
-    <button class="pregame-btn" id="btn-go-second">AI Goes First</button>
+
+    <div id="turn-order-section">
+      <button class="pregame-btn" id="btn-go-first">I Go First</button>
+      <button class="pregame-btn" id="btn-go-second">AI Goes First</button>
+    </div>
+
+    <div id="roster-section">
+      <h2 style="font-size:16px;margin-bottom:12px">Select Your Army</h2>
+      <div id="roster-list"></div>
+      <div id="roster-total">0 / 1000 pts | 0 models</div>
+      <button class="pregame-btn" id="btn-confirm-roster">Deploy Army</button>
+    </div>
+  </div>
+</div>
+
+<!-- Dice input modal -->
+<div id="dice-modal">
+  <div id="dice-modal-box">
+    <h3 id="dice-title">Roll Dice</h3>
+    <div class="dice-info" id="dice-info"></div>
+    <div id="dice-fields"></div>
+    <button id="dice-submit">Submit</button>
+    <button id="dice-cancel">Cancel</button>
   </div>
 </div>
 
 <div id="sidebar">
-  <h1>Warhammer 40K</h1>
+  <h1>Warhammer 40K <span id="god-mode-toggle">God</span></h1>
   <div id="info-bar">
     <div class="info-item"><div class="info-label">Turn</div><div class="info-value" id="turn-num">1</div></div>
     <div class="info-item"><div class="info-label">Your VP</div><div class="info-value vp-you" id="vp-you">0</div></div>
@@ -271,6 +450,7 @@ canvas { border: 2px solid #0f3460; }
   <div id="move-hint">Drag a unit to move it (circle = max range)</div>
   <div id="btn-row">
     <button id="btn-ai-step" style="display:none">Next AI Action</button>
+    <button id="btn-confirm-deploy" style="display:none">Confirm Deploy</button>
     <button id="btn-pass">Pass Phase</button>
     <button id="btn-reset">New Game</button>
   </div>
@@ -295,47 +475,101 @@ let actions = [];
 let selectedUnitId = null;
 let hoveredUnitId = null;
 let filterType = "all";
+let humanFirstChoice = false;
+let localGodMode = false;
 
 let dragging = null;
 let dragPos = null;
 let dragValid = false;
 let dragStartMouse = null;
 let dragOffset = null;
+let pendingDiceAction = null;
 
 const canvas = document.getElementById("board");
 const ctx = canvas.getContext("2d");
 const tooltip = document.getElementById("tooltip");
 const pregameOverlay = document.getElementById("pregame-overlay");
+const diceModal = document.getElementById("dice-modal");
 
 const DEPLOY_DEPTH = 9;
-const OWNER_COLORS = {
-  0: { fill: "#4ecdc4", stroke: "#2a9d8f", label: "Tau" },
-  1: { fill: "#e94560", stroke: "#c9302c", label: "Blood Angels" },
+
+// ---- Pregame: Turn Order ----
+
+document.getElementById("btn-go-first").onclick = function() {
+  humanFirstChoice = true;
+  loadRoster();
+};
+document.getElementById("btn-go-second").onclick = function() {
+  humanFirstChoice = false;
+  loadRoster();
 };
 
-// ---- Pregame ----
+async function loadRoster() {
+  document.getElementById("turn-order-section").style.display = "none";
+  document.getElementById("roster-section").style.display = "block";
 
-document.getElementById("btn-go-first").onclick = () => startGame(true);
-document.getElementById("btn-go-second").onclick = () => startGame(false);
+  var r = await fetch("/api/templates");
+  var templates = await r.json();
+  var list = document.getElementById("roster-list");
+  list.innerHTML = "";
 
-async function startGame(humanFirst) {
+  for (var i = 0; i < templates.length; i++) {
+    var t = templates[i];
+    var item = document.createElement("label");
+    item.className = "roster-item";
+    item.innerHTML =
+      '<input type="checkbox" data-idx="' + t.idx + '" data-pts="' + t.points + '" data-models="' + t.models + '"> ' +
+      '<span class="roster-name">' + t.name + '</span>' +
+      '<span class="roster-models">' + t.models + ' models</span>' +
+      '<span class="roster-pts">' + t.points + ' pts</span>';
+    list.appendChild(item);
+  }
+
+  list.querySelectorAll("input[type=checkbox]").forEach(function(cb) {
+    cb.onchange = updateRosterTotal;
+  });
+  updateRosterTotal();
+}
+
+function updateRosterTotal() {
+  var checks = document.querySelectorAll("#roster-list input[type=checkbox]");
+  var pts = 0, models = 0;
+  checks.forEach(function(cb) {
+    if (cb.checked) {
+      pts += parseInt(cb.dataset.pts);
+      models += parseInt(cb.dataset.models);
+    }
+  });
+  document.getElementById("roster-total").textContent = pts + " / 1000 pts | " + models + " models";
+  var btn = document.getElementById("btn-confirm-roster");
+  btn.disabled = (pts === 0 || pts > 1000);
+}
+
+document.getElementById("btn-confirm-roster").onclick = async function() {
+  var checks = document.querySelectorAll("#roster-list input[type=checkbox]:checked");
+  var selected = [];
+  checks.forEach(function(cb) { selected.push(parseInt(cb.dataset.idx)); });
+
   pregameOverlay.style.display = "none";
-  const r = await fetch("/api/reset", {
+  document.getElementById("turn-order-section").style.display = "";
+  document.getElementById("roster-section").style.display = "none";
+
+  var r = await fetch("/api/start_game", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ human_first: humanFirst }),
+    body: JSON.stringify({ human_first: humanFirstChoice, selected_squads: selected }),
   });
   state = await r.json();
   render();
   updateSidebar();
   await fetchActions();
-}
+};
 
 // ---- Network ----
 
 async function fetchState() {
-  const r = await fetch("/api/state");
-  const data = await r.json();
+  var r = await fetch("/api/state");
+  var data = await r.json();
   if (data.waiting) return;
   state = data;
   render();
@@ -343,18 +577,18 @@ async function fetchState() {
 }
 
 async function fetchActions() {
-  const r = await fetch("/api/actions");
+  var r = await fetch("/api/actions");
   actions = await r.json();
   renderActions();
 }
 
 async function sendAction(a) {
-  const r = await fetch("/api/act", {
+  var r = await fetch("/api/act", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(a),
   });
-  const data = await r.json();
+  var data = await r.json();
   state = data.state;
   render();
   updateSidebar();
@@ -362,22 +596,23 @@ async function sendAction(a) {
 }
 
 async function sendMove(unitId, x, y) {
-  const r = await fetch("/api/move", {
+  var endpoint = state.deployment_phase ? "/api/place_unit" : "/api/move";
+  var r = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ unit_id: unitId, x: x, y: y }),
   });
-  const data = await r.json();
-  state = data.state;
+  var data = await r.json();
+  if (data.state) state = data.state;
   render();
   updateSidebar();
-  await fetchActions();
+  if (!state.deployment_phase) await fetchActions();
   return data.valid;
 }
 
 async function aiStep() {
-  const r = await fetch("/api/ai_step", { method: "POST" });
-  const data = await r.json();
+  var r = await fetch("/api/ai_step", { method: "POST" });
+  var data = await r.json();
   state = data.state;
   render();
   updateSidebar();
@@ -385,8 +620,29 @@ async function aiStep() {
 }
 
 async function passPhase() {
-  const r = await fetch("/api/pass_phase", { method: "POST" });
+  var r = await fetch("/api/pass_phase", { method: "POST" });
   state = await r.json();
+  render();
+  updateSidebar();
+  await fetchActions();
+}
+
+async function confirmDeploy() {
+  var r = await fetch("/api/confirm_deployment", { method: "POST" });
+  state = await r.json();
+  render();
+  updateSidebar();
+  await fetchActions();
+}
+
+async function advanceUnit(unitId) {
+  var r = await fetch("/api/advance", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ unit_id: unitId }),
+  });
+  var data = await r.json();
+  if (data.state) state = data.state;
   render();
   updateSidebar();
   await fetchActions();
@@ -394,14 +650,140 @@ async function passPhase() {
 
 async function resetGame() {
   pregameOverlay.style.display = "flex";
+  document.getElementById("turn-order-section").style.display = "";
+  document.getElementById("roster-section").style.display = "none";
 }
+
+// ---- Dice Modal ----
+
+function showDiceModal(action, unit, target) {
+  pendingDiceAction = { action: action, unit: unit, target: target };
+  diceModal.style.display = "flex";
+
+  var title = document.getElementById("dice-title");
+  var info = document.getElementById("dice-info");
+  var fields = document.getElementById("dice-fields");
+  fields.innerHTML = "";
+
+  if (action.action_type === 2 || action.action_type === 4) {
+    var isShoot = action.action_type === 2;
+    title.textContent = isShoot ? "Shooting - Roll Dice" : "Fight - Roll Dice";
+
+    var weapons = unit.weapons.filter(function(w) { return isShoot ? w.range > 0 : w.range <= 0; });
+    var infoHtml = "<b>" + unit.name + "</b> vs <b>" + (action.target_name || "?") + "</b><br>";
+    for (var wi = 0; wi < weapons.length; wi++) {
+      var w = weapons[wi];
+      var woundNeeded = calcWoundThreshold(w.strength, target ? target.T : 4);
+      var saveNeeded = Math.max(2, (target ? target.Sv : 4) - w.ap);
+      infoHtml += w.name + ": <b>" + w.attacks + "</b> attacks, hit on <b>" + w.to_hit + "+</b>, " +
+        "wound on <b>" + woundNeeded + "+</b>, save on <b>" + (saveNeeded <= 6 ? saveNeeded + "+" : "none") + "</b>, " +
+        "<b>D" + w.damage + "</b> dmg<br>";
+    }
+    info.innerHTML = infoHtml;
+
+    fields.innerHTML =
+      '<div class="dice-row"><label>Hits:</label><input type="number" id="dice-hits" min="0" value="0"></div>' +
+      '<div class="dice-row"><label>Wounds:</label><input type="number" id="dice-wounds" min="0" value="0"></div>' +
+      '<div class="dice-row"><label>Failed Saves:</label><input type="number" id="dice-fsaves" min="0" value="0"></div>';
+  } else if (action.action_type === 3) {
+    title.textContent = "Charge - Roll Dice";
+    var needed = action.charge_needed || 0;
+    info.innerHTML = "<b>" + unit.name + "</b> charging <b>" + (action.target_name || "?") +
+      "</b><br>Need <b>" + needed.toFixed(1) + "+</b> on 2d6";
+    fields.innerHTML =
+      '<div class="dice-row"><label>Charge Roll (2d6):</label><input type="number" id="dice-charge" min="2" max="12" value="7"></div>';
+  }
+}
+
+function calcWoundThreshold(S, T) {
+  if (S >= 2 * T) return 2;
+  if (S > T) return 3;
+  if (S === T) return 4;
+  if (S * 2 <= T) return 6;
+  return 5;
+}
+
+document.getElementById("dice-submit").onclick = async function() {
+  if (!pendingDiceAction) return;
+  var a = pendingDiceAction.action;
+  diceModal.style.display = "none";
+
+  if (a.action_type === 2) {
+    var r = await fetch("/api/shoot_manual", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        unit_id: a.unit_id,
+        target_idx: a.target_idx,
+        hits: parseInt(document.getElementById("dice-hits").value) || 0,
+        wounds: parseInt(document.getElementById("dice-wounds").value) || 0,
+        failed_saves: parseInt(document.getElementById("dice-fsaves").value) || 0,
+      }),
+    });
+    var data = await r.json();
+    if (data.state) state = data.state;
+  } else if (a.action_type === 3) {
+    var r = await fetch("/api/charge_manual", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        unit_id: a.unit_id,
+        target_idx: a.target_idx,
+        charge_roll: parseInt(document.getElementById("dice-charge").value) || 2,
+      }),
+    });
+    var data = await r.json();
+    if (data.state) state = data.state;
+  } else if (a.action_type === 4) {
+    var r = await fetch("/api/fight_manual", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        unit_id: a.unit_id,
+        target_idx: a.target_idx,
+        hits: parseInt(document.getElementById("dice-hits").value) || 0,
+        wounds: parseInt(document.getElementById("dice-wounds").value) || 0,
+        failed_saves: parseInt(document.getElementById("dice-fsaves").value) || 0,
+      }),
+    });
+    var data = await r.json();
+    if (data.state) state = data.state;
+  }
+
+  pendingDiceAction = null;
+  render();
+  updateSidebar();
+  await fetchActions();
+};
+
+document.getElementById("dice-cancel").onclick = function() {
+  diceModal.style.display = "none";
+  pendingDiceAction = null;
+};
+
+// ---- God Mode ----
+
+document.getElementById("god-mode-toggle").onclick = async function() {
+  var r = await fetch("/api/toggle_god_mode", { method: "POST" });
+  var data = await r.json();
+  localGodMode = data.god_mode;
+  state = data.state;
+  document.getElementById("god-mode-toggle").className = localGodMode ? "active" : "";
+  canvas.className = localGodMode ? "god-active" : "";
+  render();
+  updateSidebar();
+  if (selectedUnitId !== null) {
+    var u = state.units.find(function(u) { return u.id === selectedUnitId; });
+    showUnitDetail(u || null);
+  }
+};
 
 // ---- Rendering ----
 
 function render() {
   if (!state) return;
-  const tw = state.table_w;
-  const th = state.table_h;
+  var tw = state.table_w;
+  var th = state.table_h;
   canvas.width = tw * SCALE;
   canvas.height = th * SCALE;
 
@@ -410,59 +792,103 @@ function render() {
 
   drawGrid(tw, th);
   drawDeployZones(tw, th);
+  drawTerrain();
   drawObjectives();
 
   if (dragging) drawMoveCircle(dragging);
   drawUnits();
   if (dragging && dragPos) drawDragGhost();
+
+  if (localGodMode) {
+    ctx.fillStyle = "rgba(255, 215, 0, 0.08)";
+    ctx.font = "bold 40px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("GOD MODE", canvas.width / 2, canvas.height / 2);
+  }
 }
 
 function drawGrid(tw, th) {
   ctx.strokeStyle = "#222244";
   ctx.lineWidth = 0.5;
-  for (let x = 0; x <= tw; x += 6) {
-    ctx.beginPath();
-    ctx.moveTo(x * SCALE, 0);
-    ctx.lineTo(x * SCALE, th * SCALE);
-    ctx.stroke();
+  for (var x = 0; x <= tw; x += 6) {
+    ctx.beginPath(); ctx.moveTo(x * SCALE, 0); ctx.lineTo(x * SCALE, th * SCALE); ctx.stroke();
   }
-  for (let y = 0; y <= th; y += 6) {
-    ctx.beginPath();
-    ctx.moveTo(0, y * SCALE);
-    ctx.lineTo(tw * SCALE, y * SCALE);
-    ctx.stroke();
+  for (var y = 0; y <= th; y += 6) {
+    ctx.beginPath(); ctx.moveTo(0, y * SCALE); ctx.lineTo(tw * SCALE, y * SCALE); ctx.stroke();
   }
 }
 
 function drawDeployZones(tw, th) {
-  const humanPid = state.human_player;
-  const topColor = humanPid === 1 ? "rgba(233, 69, 96, 0.04)" : "rgba(78, 205, 196, 0.04)";
-  const topLine  = humanPid === 1 ? "rgba(233, 69, 96, 0.15)" : "rgba(78, 205, 196, 0.15)";
-  const botColor = humanPid === 0 ? "rgba(233, 69, 96, 0.04)" : "rgba(78, 205, 196, 0.04)";
-  const botLine  = humanPid === 0 ? "rgba(233, 69, 96, 0.15)" : "rgba(78, 205, 196, 0.15)";
+  var humanPid = state.human_player;
+  var topColor = humanPid === 1 ? "rgba(233, 69, 96, 0.04)" : "rgba(78, 205, 196, 0.04)";
+  var topLine  = humanPid === 1 ? "rgba(233, 69, 96, 0.15)" : "rgba(78, 205, 196, 0.15)";
+  var botColor = humanPid === 0 ? "rgba(233, 69, 96, 0.04)" : "rgba(78, 205, 196, 0.04)";
+  var botLine  = humanPid === 0 ? "rgba(233, 69, 96, 0.15)" : "rgba(78, 205, 196, 0.15)";
+
+  if (state.deployment_phase) {
+    botColor = humanPid === 0 ? "rgba(233, 69, 96, 0.12)" : botColor;
+    topColor = humanPid === 1 ? "rgba(233, 69, 96, 0.12)" : topColor;
+  }
 
   ctx.fillStyle = botColor;
   ctx.fillRect(0, 0, tw * SCALE, DEPLOY_DEPTH * SCALE);
   ctx.strokeStyle = botLine;
   ctx.lineWidth = 1;
   ctx.setLineDash([6, 4]);
-  ctx.beginPath();
-  ctx.moveTo(0, DEPLOY_DEPTH * SCALE);
-  ctx.lineTo(tw * SCALE, DEPLOY_DEPTH * SCALE);
-  ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, DEPLOY_DEPTH * SCALE); ctx.lineTo(tw * SCALE, DEPLOY_DEPTH * SCALE); ctx.stroke();
 
   ctx.fillStyle = topColor;
   ctx.fillRect(0, (th - DEPLOY_DEPTH) * SCALE, tw * SCALE, DEPLOY_DEPTH * SCALE);
   ctx.strokeStyle = topLine;
-  ctx.beginPath();
-  ctx.moveTo(0, (th - DEPLOY_DEPTH) * SCALE);
-  ctx.lineTo(tw * SCALE, (th - DEPLOY_DEPTH) * SCALE);
-  ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, (th - DEPLOY_DEPTH) * SCALE); ctx.lineTo(tw * SCALE, (th - DEPLOY_DEPTH) * SCALE); ctx.stroke();
   ctx.setLineDash([]);
 }
 
+function drawTerrain() {
+  if (!state.terrain) return;
+  for (var i = 0; i < state.terrain.length; i++) {
+    var t = state.terrain[i];
+    var verts = t.vertices;
+
+    ctx.beginPath();
+    ctx.moveTo(verts[0][0] * SCALE, verts[0][1] * SCALE);
+    for (var v = 1; v < verts.length; v++) {
+      ctx.lineTo(verts[v][0] * SCALE, verts[v][1] * SCALE);
+    }
+    ctx.closePath();
+
+    ctx.fillStyle = "rgba(100, 100, 120, 0.55)";
+    ctx.fill();
+
+    ctx.strokeStyle = "rgba(160, 160, 180, 0.8)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    var bounds = _terrainBounds(verts);
+    var cx = (bounds.minX + bounds.maxX) / 2 * SCALE;
+    var cy = (bounds.minY + bounds.maxY) / 2 * SCALE;
+    ctx.fillStyle = "rgba(200, 200, 220, 0.5)";
+    ctx.font = "bold 9px sans-serif";
+    ctx.textAlign = "center";
+    var label = t.terrain_type === "L" ? "L-Ruin" : t.terrain_type === "square" ? "Ruin" : "Ruin";
+    ctx.fillText(label, cx, cy + 3);
+  }
+}
+
+function _terrainBounds(verts) {
+  var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (var i = 0; i < verts.length; i++) {
+    if (verts[i][0] < minX) minX = verts[i][0];
+    if (verts[i][1] < minY) minY = verts[i][1];
+    if (verts[i][0] > maxX) maxX = verts[i][0];
+    if (verts[i][1] > maxY) maxY = verts[i][1];
+  }
+  return {minX: minX, minY: minY, maxX: maxX, maxY: maxY};
+}
+
 function drawObjectives() {
-  for (const obj of state.objectives) {
+  for (var i = 0; i < state.objectives.length; i++) {
+    var obj = state.objectives[i];
     ctx.beginPath();
     ctx.arc(obj.x * SCALE, obj.y * SCALE, obj.r * SCALE, 0, Math.PI * 2);
     ctx.fillStyle = "rgba(255, 215, 0, 0.12)";
@@ -478,122 +904,86 @@ function drawObjectives() {
 }
 
 function drawMoveCircle(unit) {
-  const x = unit.x * SCALE;
-  const y = unit.y * SCALE;
-  const r = unit.M * SCALE;
-
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.fillStyle = "rgba(78, 205, 196, 0.08)";
-  ctx.fill();
-  ctx.strokeStyle = "rgba(78, 205, 196, 0.6)";
-  ctx.lineWidth = 2;
-  ctx.setLineDash([5, 5]);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  ctx.strokeStyle = "rgba(78, 205, 196, 0.15)";
-  ctx.lineWidth = 0.5;
-  for (let frac = 0.25; frac < 1.0; frac += 0.25) {
-    ctx.beginPath();
-    ctx.arc(x, y, r * frac, 0, Math.PI * 2);
-    ctx.stroke();
+  var x = unit.x * SCALE, y = unit.y * SCALE, r = unit.M * SCALE;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(78, 205, 196, 0.08)"; ctx.fill();
+  ctx.strokeStyle = "rgba(78, 205, 196, 0.6)"; ctx.lineWidth = 2;
+  ctx.setLineDash([5, 5]); ctx.stroke(); ctx.setLineDash([]);
+  ctx.strokeStyle = "rgba(78, 205, 196, 0.15)"; ctx.lineWidth = 0.5;
+  for (var frac = 0.25; frac < 1.0; frac += 0.25) {
+    ctx.beginPath(); ctx.arc(x, y, r * frac, 0, Math.PI * 2); ctx.stroke();
   }
 }
 
 function drawDragGhost() {
   if (!dragging || !dragPos) return;
-  const gx = dragPos.x * SCALE;
-  const gy = dragPos.y * SCALE;
-  const r = Math.max(dragging.base_r * SCALE, 5);
-
-  ctx.beginPath();
-  ctx.arc(gx, gy, r, 0, Math.PI * 2);
-  ctx.fillStyle = dragValid ? "rgba(78, 205, 196, 0.5)" : "rgba(233, 69, 96, 0.5)";
-  ctx.fill();
-  ctx.strokeStyle = dragValid ? "#4ecdc4" : "#e94560";
-  ctx.lineWidth = 2;
-  ctx.setLineDash([3, 3]);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  ctx.beginPath();
-  ctx.moveTo(dragging.x * SCALE, dragging.y * SCALE);
-  ctx.lineTo(gx, gy);
+  var gx = dragPos.x * SCALE, gy = dragPos.y * SCALE;
+  var r = Math.max(dragging.base_r * SCALE, 5);
+  ctx.beginPath(); ctx.arc(gx, gy, r, 0, Math.PI * 2);
+  ctx.fillStyle = dragValid ? "rgba(78, 205, 196, 0.5)" : "rgba(233, 69, 96, 0.5)"; ctx.fill();
+  ctx.strokeStyle = dragValid ? "#4ecdc4" : "#e94560"; ctx.lineWidth = 2;
+  ctx.setLineDash([3, 3]); ctx.stroke(); ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(dragging.x * SCALE, dragging.y * SCALE); ctx.lineTo(gx, gy);
   ctx.strokeStyle = dragValid ? "rgba(78, 205, 196, 0.4)" : "rgba(233, 69, 96, 0.4)";
-  ctx.lineWidth = 1;
-  ctx.stroke();
-
-  const dist = Math.sqrt((dragPos.x - dragging.x) ** 2 + (dragPos.y - dragging.y) ** 2);
+  ctx.lineWidth = 1; ctx.stroke();
+  var dist = Math.sqrt((dragPos.x - dragging.x) ** 2 + (dragPos.y - dragging.y) ** 2);
   ctx.font = "bold 11px sans-serif";
-  ctx.fillStyle = dragValid ? "#4ecdc4" : "#e94560";
-  ctx.textAlign = "center";
-  const midX = (dragging.x * SCALE + gx) / 2;
-  const midY = (dragging.y * SCALE + gy) / 2;
-  ctx.fillText(dist.toFixed(1) + '"', midX, midY - 8);
+  ctx.fillStyle = dragValid ? "#4ecdc4" : "#e94560"; ctx.textAlign = "center";
+  ctx.fillText(dist.toFixed(1) + '"', (dragging.x * SCALE + gx) / 2, (dragging.y * SCALE + gy) / 2 - 8);
 }
 
 function drawUnits() {
-  const humanPid = state.human_player;
-  for (const u of state.units) {
+  var humanPid = state.human_player;
+  for (var i = 0; i < state.units.length; i++) {
+    var u = state.units[i];
     if (!u.alive) continue;
     if (dragging && u.id === dragging.id && dragPos) continue;
 
-    const x = u.x * SCALE;
-    const y = u.y * SCALE;
-    const r = Math.max(u.base_r * SCALE, 5);
-    const isHuman = u.owner === humanPid;
-    const colors = isHuman
-      ? { fill: "#e94560", stroke: "#c9302c" }
-      : { fill: "#4ecdc4", stroke: "#2a9d8f" };
+    var x = u.x * SCALE, y = u.y * SCALE;
+    var r = Math.max(u.base_r * SCALE, 5);
+    var isHuman = u.owner === humanPid;
+    var colors = isHuman ? { fill: "#e94560", stroke: "#c9302c" } : { fill: "#4ecdc4", stroke: "#2a9d8f" };
 
-    const isSelected = u.id === selectedUnitId;
-    const isHovered = u.id === hoveredUnitId;
-    const canMove = u.can_move && state.phase === "movement" && state.is_human_turn;
+    var isSelected = u.id === selectedUnitId;
+    var isHovered = u.id === hoveredUnitId;
+    var canMove = u.can_move && state.phase === "movement" && state.is_human_turn;
+    var canDeploy = state.deployment_phase && isHuman;
 
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fillStyle = isSelected ? "#fff" : isHovered ? lighten(colors.fill, 0.3) : colors.fill;
     ctx.globalAlpha = u.W < u.max_W ? 0.6 : 0.9;
-    ctx.fill();
-    ctx.globalAlpha = 1;
-    ctx.strokeStyle = isSelected ? "#ffd700" : canMove ? "#4ecdc4" : colors.stroke;
-    ctx.lineWidth = isSelected ? 2.5 : canMove ? 2 : 1.2;
+    ctx.fill(); ctx.globalAlpha = 1;
+    ctx.strokeStyle = isSelected ? "#ffd700" : (canMove || canDeploy) ? "#4ecdc4" : colors.stroke;
+    ctx.lineWidth = isSelected ? 2.5 : (canMove || canDeploy) ? 2 : 1.2;
     ctx.stroke();
 
-    if (canMove && !isSelected) {
-      ctx.beginPath();
-      ctx.arc(x, y, r + 3, 0, Math.PI * 2);
-      ctx.strokeStyle = "rgba(78, 205, 196, 0.5)";
-      ctx.lineWidth = 1;
-      ctx.setLineDash([3, 3]);
-      ctx.stroke();
-      ctx.setLineDash([]);
+    if ((canMove || canDeploy) && !isSelected) {
+      ctx.beginPath(); ctx.arc(x, y, r + 3, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(78, 205, 196, 0.5)"; ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]); ctx.stroke(); ctx.setLineDash([]);
     }
 
     if (u.is_leader) {
-      ctx.beginPath();
-      ctx.arc(x, y, r + 5, 0, Math.PI * 2);
-      ctx.strokeStyle = "#ffd700";
-      ctx.lineWidth = 1;
-      ctx.setLineDash([4, 3]);
-      ctx.stroke();
-      ctx.setLineDash([]);
+      ctx.beginPath(); ctx.arc(x, y, r + 5, 0, Math.PI * 2);
+      ctx.strokeStyle = "#ffd700"; ctx.lineWidth = 1;
+      ctx.setLineDash([4, 3]); ctx.stroke(); ctx.setLineDash([]);
+    }
+
+    if (u.advanced) {
+      ctx.font = "bold 8px sans-serif"; ctx.fillStyle = "#ffd700"; ctx.textAlign = "center";
+      ctx.fillText("ADV", x, y - r - 2);
     }
 
     if (u.W < u.max_W) {
-      const pct = u.W / u.max_W;
-      const bw = r * 1.8;
-      ctx.fillStyle = "#300";
-      ctx.fillRect(x - bw / 2, y - r - 8, bw, 4);
+      var pct = u.W / u.max_W;
+      var bw = r * 1.8;
+      ctx.fillStyle = "#300"; ctx.fillRect(x - bw / 2, y - r - 8, bw, 4);
       ctx.fillStyle = pct > 0.5 ? "#4ecdc4" : pct > 0.25 ? "#ffd700" : "#e94560";
       ctx.fillRect(x - bw / 2, y - r - 8, bw * pct, 4);
     }
 
-    ctx.font = "bold 9px sans-serif";
-    ctx.fillStyle = "#fff";
-    ctx.textAlign = "center";
-    const label = u.name.length > 12 ? u.name.split(" ")[0] : u.name;
+    ctx.font = "bold 9px sans-serif"; ctx.fillStyle = "#fff"; ctx.textAlign = "center";
+    var label = u.name.length > 12 ? u.name.split(" ")[0] : u.name;
     ctx.fillText(label, x, y + r + 12);
   }
 }
@@ -603,50 +993,68 @@ function drawUnits() {
 function updateSidebar() {
   if (!state) return;
   document.getElementById("turn-num").textContent = state.turn;
-
-  const humanPid = String(state.human_player);
-  const aiPid = String(state.ai_player);
+  var humanPid = String(state.human_player);
+  var aiPid = String(state.ai_player);
   document.getElementById("vp-you").textContent = state.vp[humanPid] || 0;
   document.getElementById("vp-ai").textContent = state.vp[aiPid] || 0;
-  document.getElementById("phase-name").textContent = state.phase;
+  document.getElementById("phase-name").textContent = state.deployment_phase ? "deploy" : state.phase;
 
-  const bar = document.getElementById("phase-bar");
-  if (state.game_over) {
-    const msg = state.winner === state.human_player ? "YOU WIN!" : state.winner === state.ai_player ? "AI WINS" : "DRAW";
+  var bar = document.getElementById("phase-bar");
+  var btnDeploy = document.getElementById("btn-confirm-deploy");
+  var btnPass = document.getElementById("btn-pass");
+  var btnAiStep = document.getElementById("btn-ai-step");
+
+  if (state.deployment_phase) {
+    bar.textContent = "Deployment Phase - drag your units into position";
+    bar.className = "deploy-phase";
+    btnDeploy.style.display = "";
+    btnPass.style.display = "none";
+    btnAiStep.style.display = "none";
+  } else if (state.game_over) {
+    var msg = state.winner === state.human_player ? "YOU WIN!" : state.winner === state.ai_player ? "AI WINS" : "DRAW";
     bar.textContent = "Game Over - " + msg;
     bar.className = "game-over-bar";
+    btnDeploy.style.display = "none";
+    btnPass.style.display = "";
+    btnPass.disabled = true;
+    btnAiStep.style.display = "none";
   } else if (state.is_human_turn) {
     bar.textContent = "Your " + state.phase + " phase";
     bar.className = "your-turn";
-  } else {
+    btnDeploy.style.display = "none";
+    btnPass.style.display = "";
+    btnPass.textContent = "Pass Phase";
+    btnPass.disabled = false;
+    btnAiStep.style.display = "none";
+  } else if (state.is_ai_turn) {
     bar.textContent = "AI " + state.phase + " phase (" + state.ai_actions_remaining + " actions left)";
     bar.className = "ai-turn";
+    btnDeploy.style.display = "none";
+    btnPass.style.display = "";
+    btnPass.textContent = "Skip AI Phase";
+    btnPass.disabled = false;
+    btnAiStep.style.display = "";
+    btnAiStep.disabled = false;
+  } else {
+    btnDeploy.style.display = "none";
+    btnPass.style.display = "";
+    btnAiStep.style.display = "none";
   }
 
-  const moveHint = document.getElementById("move-hint");
-  if (state.is_human_turn && state.phase === "movement" && !state.game_over) {
+  var moveHint = document.getElementById("move-hint");
+  if (state.deployment_phase) {
+    moveHint.textContent = "Drag your units within the highlighted deployment zone";
+    moveHint.style.display = "block";
+  } else if (state.is_human_turn && state.phase === "movement" && !state.game_over) {
+    moveHint.textContent = "Drag a unit to move it (circle = max range)";
     moveHint.style.display = "block";
   } else {
     moveHint.style.display = "none";
   }
 
-  const btnAiStep = document.getElementById("btn-ai-step");
-  const btnPass = document.getElementById("btn-pass");
-
-  if (state.is_ai_turn) {
-    btnAiStep.style.display = "";
-    btnAiStep.disabled = false;
-    btnPass.textContent = "Skip AI Phase";
-    btnPass.disabled = false;
-  } else {
-    btnAiStep.style.display = "none";
-    btnPass.textContent = "Pass Phase";
-    btnPass.disabled = !state.is_human_turn || state.game_over;
-  }
-
-  const log = document.getElementById("log-panel");
+  var log = document.getElementById("log-panel");
   log.innerHTML = state.log.map(function(l) {
-    let cls = "";
+    var cls = "";
     if (l.startsWith("[AI]")) cls = "log-ai";
     else if (l.startsWith("[You]")) cls = "log-you";
     return '<div class="log-line ' + cls + '">' + l + '</div>';
@@ -655,28 +1063,32 @@ function updateSidebar() {
 }
 
 function renderActions() {
-  const container = document.getElementById("action-list");
-  const filterDiv = document.getElementById("action-filter");
+  var container = document.getElementById("action-list");
+  var filterDiv = document.getElementById("action-filter");
 
-  if (!state || state.is_ai_turn) {
+  if (!state || state.deployment_phase) {
+    container.innerHTML = '<div style="color:#4ecdc4;font-size:11px;padding:8px">Drag units to position them, then click Confirm Deploy</div>';
+    filterDiv.innerHTML = "";
+    return;
+  }
+
+  if (state.is_ai_turn) {
     container.innerHTML = '<div style="color:#4ecdc4;font-size:11px;padding:8px">AI is playing... click "Next AI Action" to step through</div>';
     filterDiv.innerHTML = "";
     return;
   }
 
-  const nonMoveActions = actions.filter(function(a) { return a.action_type !== 1; });
-
-  const types = new Set(nonMoveActions.map(function(a) { return a.action_type; }));
-  const typeNames = { 0: "Pass", 2: "Shoot", 3: "Charge", 4: "Fight" };
-  const typeClasses = { 0: "pass", 2: "shoot", 3: "charge", 4: "fight" };
+  var nonMoveActions = actions.filter(function(a) { return a.action_type !== 1; });
+  var types = new Set(nonMoveActions.map(function(a) { return a.action_type; }));
+  var typeNames = { 0: "Pass", 2: "Shoot", 3: "Charge", 4: "Fight" };
+  var typeClasses = { 0: "pass", 2: "shoot", 3: "charge", 4: "fight" };
 
   filterDiv.innerHTML = '<span class="filter-btn ' + (filterType === "all" ? "active" : "") + '" data-f="all">All</span>';
-  for (var ti = 0; ti < [2, 3, 4, 0].length; ti++) {
-    var t = [2, 3, 4, 0][ti];
+  [2, 3, 4, 0].forEach(function(t) {
     if (types.has(t)) {
       filterDiv.innerHTML += '<span class="filter-btn ' + (filterType === String(t) ? "active" : "") + '" data-f="' + t + '">' + typeNames[t] + '</span>';
     }
-  }
+  });
   filterDiv.querySelectorAll(".filter-btn").forEach(function(btn) {
     btn.onclick = function() { filterType = btn.dataset.f; renderActions(); };
   });
@@ -692,24 +1104,56 @@ function renderActions() {
 
   container.innerHTML = "";
 
-  if (state && state.is_human_turn && state.phase === "movement") {
+  if (state.is_human_turn && state.phase === "movement") {
     var hint = document.createElement("div");
     hint.style.cssText = "color:#4ecdc4;font-size:11px;padding:4px 0 8px;font-style:italic";
     hint.textContent = "Drag units on the board to move them";
     container.appendChild(hint);
+
+    var seenSquads = {};
+    var humanUnits = state.units.filter(function(u) { return u.owner === state.human_player && u.alive && !u.advanced; });
+    humanUnits.forEach(function(u) {
+      var key = u.squad_id >= 0 ? u.squad_id : "solo_" + u.id;
+      if (!seenSquads[key]) {
+        seenSquads[key] = true;
+        var advBtn = document.createElement("button");
+        advBtn.className = "action-btn advance-btn";
+        advBtn.textContent = (u.squad_name || u.name) + " - Advance (D6 + M)";
+        advBtn.onclick = (function(uid) { return function() { advanceUnit(uid); }; })(u.id);
+        container.appendChild(advBtn);
+      }
+    });
   }
 
   for (var i = 0; i < Math.min(filtered.length, 80); i++) {
     var a = filtered[i];
-    var btn = document.createElement("button");
-    btn.className = "action-btn " + (typeClasses[a.action_type] || "");
-    btn.textContent = a.label;
-    btn.onclick = (function(act) { return function() { sendAction(act); }; })(a);
-    container.appendChild(btn);
+    if (a.action_type === 0) {
+      var btn = document.createElement("button");
+      btn.className = "action-btn pass";
+      btn.textContent = a.label;
+      btn.onclick = (function(act) { return function() { sendAction(act); }; })(a);
+      container.appendChild(btn);
+    } else if (a.action_type === 2 || a.action_type === 3 || a.action_type === 4) {
+      var btn = document.createElement("button");
+      btn.className = "action-btn " + (typeClasses[a.action_type] || "");
+      btn.textContent = a.label;
+      btn.onclick = (function(act) {
+        return function() {
+          var u = state.units.find(function(u) { return u.id === act.unit_id; });
+          var tgt = null;
+          if (act.target_idx !== undefined) {
+            var enemyUnits = state.units.filter(function(u) { return u.owner === state.ai_player; });
+            if (act.target_idx < enemyUnits.length) tgt = enemyUnits[act.target_idx];
+          }
+          showDiceModal(act, u, tgt);
+        };
+      })(a);
+      container.appendChild(btn);
+    }
   }
 
-  if (filtered.length === 0 && !(state && state.phase === "movement")) {
-    container.innerHTML = '<div style="color:#666;font-size:11px;padding:8px">No actions available</div>';
+  if (filtered.length === 0 && !(state.phase === "movement")) {
+    container.innerHTML += '<div style="color:#666;font-size:11px;padding:8px">No actions available</div>';
   }
 }
 
@@ -724,49 +1168,107 @@ function showUnitDetail(u) {
   var wpns = u.weapons.map(function(w) {
     return w.name + ": " + (w.range > 0 ? w.range + '"' : 'Melee') + " A" + w.attacks + " S" + w.strength + " AP" + w.ap + " D" + w.damage;
   }).join("<br>");
-  panel.innerHTML =
-    '<h3 style="color:' + color + '">' + u.name + ' (' + side + ')' + (u.is_leader ? ' \u2605' : '') + '</h3>' +
-    '<div style="font-size:11px;color:#888;margin-bottom:4px">' + u.squad_name + '</div>' +
-    '<div class="stat-row">' +
-    '<span class="stat">M' + u.M + '"</span>' +
-    '<span class="stat">T' + u.T + '</span>' +
-    '<span class="stat">Sv' + u.Sv + '+</span>' +
-    '<span class="stat">W' + u.W + '/' + u.max_W + '</span>' +
-    '<span class="stat">OC' + u.OC + '</span>' +
-    '</div>' +
-    '<div style="font-size:11px;margin-top:4px">' + wpns + '</div>';
+  var advTag = u.advanced ? ' <span style="color:#ffd700">[ADV]</span>' : "";
+
+  if (localGodMode) {
+    panel.innerHTML =
+      '<h3 style="color:' + color + '">' + u.name + ' (' + side + ')' + (u.is_leader ? ' \u2605' : '') + advTag + '</h3>' +
+      '<div style="font-size:11px;color:#888;margin-bottom:4px">' + u.squad_name + '</div>' +
+      '<div class="stat-row">' +
+      'M<input class="god-input" id="god-M" value="' + u.M + '">' +
+      'T<input class="god-input" id="god-T" value="' + u.T + '">' +
+      'Sv<input class="god-input" id="god-Sv" value="' + u.Sv + '">' +
+      'W<input class="god-input" id="god-W" value="' + u.W + '">/' + u.max_W +
+      ' OC<input class="god-input" id="god-OC" value="' + u.OC + '">' +
+      '</div>' +
+      '<div class="stat-row">' +
+      'X<input class="god-input" id="god-X" value="' + u.x.toFixed(1) + '" style="width:55px">' +
+      'Y<input class="god-input" id="god-Y" value="' + u.y.toFixed(1) + '" style="width:55px">' +
+      ' Alive<input type="checkbox" id="god-alive" ' + (u.alive ? 'checked' : '') + '>' +
+      '</div>' +
+      '<button id="god-save-btn" onclick="saveGodChanges(' + u.id + ')">Save Changes</button>' +
+      '<div style="font-size:11px;margin-top:4px">' + wpns + '</div>';
+  } else {
+    panel.innerHTML =
+      '<h3 style="color:' + color + '">' + u.name + ' (' + side + ')' + (u.is_leader ? ' \u2605' : '') + advTag + '</h3>' +
+      '<div style="font-size:11px;color:#888;margin-bottom:4px">' + u.squad_name + '</div>' +
+      '<div class="stat-row">' +
+      '<span class="stat">M' + u.M + '"</span>' +
+      '<span class="stat">T' + u.T + '</span>' +
+      '<span class="stat">Sv' + u.Sv + '+</span>' +
+      '<span class="stat">W' + u.W + '/' + u.max_W + '</span>' +
+      '<span class="stat">OC' + u.OC + '</span>' +
+      '</div>' +
+      '<div style="font-size:11px;margin-top:4px">' + wpns + '</div>';
+  }
+}
+
+async function saveGodChanges(unitId) {
+  var mods = [];
+  var fields = [
+    { id: "god-M", field: "M" }, { id: "god-T", field: "T" },
+    { id: "god-Sv", field: "Sv" }, { id: "god-W", field: "W" },
+    { id: "god-OC", field: "OC" }, { id: "god-X", field: "pos_x" },
+    { id: "god-Y", field: "pos_y" },
+  ];
+  for (var i = 0; i < fields.length; i++) {
+    var el = document.getElementById(fields[i].id);
+    if (el) mods.push({ unit_id: unitId, field: fields[i].field, value: parseFloat(el.value) });
+  }
+  var aliveEl = document.getElementById("god-alive");
+  if (aliveEl) mods.push({ unit_id: unitId, field: "alive", value: aliveEl.checked });
+
+  var r = await fetch("/api/god_mode", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ modifications: mods }),
+  });
+  var data = await r.json();
+  if (data.state) state = data.state;
+  render();
+  updateSidebar();
+  var u = state.units.find(function(u) { return u.id === unitId; });
+  showUnitDetail(u || null);
 }
 
 // ---- Interaction ----
 
 function findUnitAt(mx, my) {
   if (!state) return null;
-  var bestDist = Infinity;
-  var best = null;
+  var bestDist = Infinity, best = null;
   for (var i = 0; i < state.units.length; i++) {
     var u = state.units[i];
     if (!u.alive) continue;
     var dx = u.x - mx, dy = u.y - my;
     var d = Math.sqrt(dx * dx + dy * dy);
     var hitR = Math.max(u.base_r, 1.2);
-    if (d < hitR && d < bestDist) {
-      bestDist = d;
-      best = u;
-    }
+    if (d < hitR && d < bestDist) { bestDist = d; best = u; }
   }
   return best;
 }
 
 canvas.addEventListener("mousedown", function(e) {
-  if (!state || !state.is_human_turn || state.phase !== "movement") return;
-  var rect = canvas.getBoundingClientRect();
-  var mx = (e.clientX - rect.left) / SCALE;
-  var my = (e.clientY - rect.top) / SCALE;
+  if (!state) return;
 
+  var isDeploy = state.deployment_phase;
+  var isMove = state.is_human_turn && state.phase === "movement" && !isDeploy;
+
+  if (!isDeploy && !isMove) return;
+
+  var rect = canvas.getBoundingClientRect();
+  var mx = (e.clientX - rect.left) / SCALE, my = (e.clientY - rect.top) / SCALE;
   var u = findUnitAt(mx, my);
-  if (u && u.can_move && u.owner === state.human_player) {
+
+  if (isDeploy && u && u.owner === state.human_player) {
     dragging = u;
-    dragStartMouse = { x: mx, y: my };
+    dragOffset = { x: mx - u.x, y: my - u.y };
+    dragPos = { x: u.x, y: u.y };
+    dragValid = true;
+    canvas.style.cursor = "grabbing";
+    e.preventDefault();
+    render();
+  } else if (isMove && u && u.can_move && u.owner === state.human_player) {
+    dragging = u;
     dragOffset = { x: mx - u.x, y: my - u.y };
     dragPos = { x: u.x, y: u.y };
     dragValid = true;
@@ -779,14 +1281,16 @@ canvas.addEventListener("mousedown", function(e) {
 canvas.addEventListener("mousemove", function(e) {
   if (!state) return;
   var rect = canvas.getBoundingClientRect();
-  var mx = (e.clientX - rect.left) / SCALE;
-  var my = (e.clientY - rect.top) / SCALE;
+  var mx = (e.clientX - rect.left) / SCALE, my = (e.clientY - rect.top) / SCALE;
 
   if (dragging) {
-    var newX = mx - dragOffset.x;
-    var newY = my - dragOffset.y;
+    var newX = mx - dragOffset.x, newY = my - dragOffset.y;
     dragPos = { x: newX, y: newY };
-    dragValid = checkDragValid(dragging, newX, newY);
+    if (state.deployment_phase) {
+      dragValid = checkDeployValid(dragging, newX, newY);
+    } else {
+      dragValid = checkDragValid(dragging, newX, newY);
+    }
     tooltip.style.display = "none";
     render();
     return;
@@ -794,10 +1298,7 @@ canvas.addEventListener("mousemove", function(e) {
 
   var found = findUnitAt(mx, my);
   var newHover = found ? found.id : null;
-  if (newHover !== hoveredUnitId) {
-    hoveredUnitId = newHover;
-    render();
-  }
+  if (newHover !== hoveredUnitId) { hoveredUnitId = newHover; render(); }
 
   if (found) {
     tooltip.style.display = "block";
@@ -805,14 +1306,19 @@ canvas.addEventListener("mousemove", function(e) {
     tooltip.style.top = (e.clientY - canvas.parentElement.getBoundingClientRect().top - 12) + "px";
     var side = (found.owner === state.human_player) ? "You" : "AI";
     tooltip.innerHTML = "<b>" + found.name + "</b> (" + side + ")<br>W" + found.W + "/" + found.max_W + " T" + found.T + " Sv" + found.Sv + "+";
-    if (found.can_move && state.phase === "movement" && state.is_human_turn) {
+    if (found.advanced) tooltip.innerHTML += '<br><em style="color:#ffd700">Advanced</em>';
+    if (found.can_move && state.phase === "movement" && state.is_human_turn)
       tooltip.innerHTML += '<br><em style="color:#4ecdc4">Drag to move (M' + found.M + '")</em>';
-    }
+    if (state.deployment_phase && found.owner === state.human_player)
+      tooltip.innerHTML += '<br><em style="color:#4ecdc4">Drag to reposition</em>';
   } else {
     tooltip.style.display = "none";
   }
 
-  if (state.is_human_turn && state.phase === "movement") {
+  var isDeploy = state.deployment_phase;
+  if (isDeploy) {
+    canvas.style.cursor = (found && found.owner === state.human_player) ? "grab" : "crosshair";
+  } else if (state.is_human_turn && state.phase === "movement") {
     canvas.style.cursor = (found && found.can_move && found.owner === state.human_player) ? "grab" : "crosshair";
   } else {
     canvas.style.cursor = "crosshair";
@@ -821,38 +1327,29 @@ canvas.addEventListener("mousemove", function(e) {
 
 canvas.addEventListener("mouseup", async function(e) {
   if (!dragging) return;
-
   var rect = canvas.getBoundingClientRect();
-  var mx = (e.clientX - rect.left) / SCALE;
-  var my = (e.clientY - rect.top) / SCALE;
-  var finalX = mx - dragOffset.x;
-  var finalY = my - dragOffset.y;
-
+  var mx = (e.clientX - rect.left) / SCALE, my = (e.clientY - rect.top) / SCALE;
+  var finalX = mx - dragOffset.x, finalY = my - dragOffset.y;
   var dist = Math.sqrt((finalX - dragging.x) ** 2 + (finalY - dragging.y) ** 2);
 
-  if (dist > 0.3 && checkDragValid(dragging, finalX, finalY)) {
-    await sendMove(dragging.id, finalX, finalY);
+  if (state.deployment_phase) {
+    if (dist > 0.1 && checkDeployValid(dragging, finalX, finalY)) {
+      await sendMove(dragging.id, finalX, finalY);
+    }
+  } else {
+    if (dist > 0.3 && checkDragValid(dragging, finalX, finalY)) {
+      await sendMove(dragging.id, finalX, finalY);
+    }
   }
 
-  dragging = null;
-  dragPos = null;
-  dragValid = false;
-  dragOffset = null;
-  dragStartMouse = null;
+  dragging = null; dragPos = null; dragValid = false; dragOffset = null;
   canvas.style.cursor = "crosshair";
   render();
 });
 
 canvas.addEventListener("mouseleave", function() {
   tooltip.style.display = "none";
-  if (dragging) {
-    dragging = null;
-    dragPos = null;
-    dragValid = false;
-    dragOffset = null;
-    dragStartMouse = null;
-    canvas.style.cursor = "crosshair";
-  }
+  if (dragging) { dragging = null; dragPos = null; dragValid = false; dragOffset = null; canvas.style.cursor = "crosshair"; }
   hoveredUnitId = null;
   render();
 });
@@ -861,9 +1358,7 @@ canvas.addEventListener("click", function(e) {
   if (dragging) return;
   if (!state) return;
   var rect = canvas.getBoundingClientRect();
-  var mx = (e.clientX - rect.left) / SCALE;
-  var my = (e.clientY - rect.top) / SCALE;
-
+  var mx = (e.clientX - rect.left) / SCALE, my = (e.clientY - rect.top) / SCALE;
   var found = findUnitAt(mx, my);
   selectedUnitId = found ? found.id : null;
   showUnitDetail(found);
@@ -876,24 +1371,73 @@ function checkDragValid(unit, mx, my) {
   if (dist > unit.M + 0.01) return false;
   if (mx < unit.base_r || mx > state.table_w - unit.base_r) return false;
   if (my < unit.base_r || my > state.table_h - unit.base_r) return false;
+  if (collidesWithTerrain(mx, my, unit.base_r)) return false;
   return true;
+}
+
+function checkDeployValid(unit, mx, my) {
+  if (mx < unit.base_r || mx > state.table_w - unit.base_r) return false;
+  if (my < unit.base_r || my > state.table_h - unit.base_r) return false;
+  if (state.human_player === 0) {
+    if (my > DEPLOY_DEPTH) return false;
+  } else {
+    if (my < state.table_h - DEPLOY_DEPTH) return false;
+  }
+  if (collidesWithTerrain(mx, my, unit.base_r)) return false;
+  return true;
+}
+
+function collidesWithTerrain(x, y, baseR) {
+  if (!state.terrain) return false;
+  for (var i = 0; i < state.terrain.length; i++) {
+    var t = state.terrain[i];
+    if (!t.blocks_movement) continue;
+    if (pointNearPolygon(x, y, baseR, t.vertices)) return true;
+  }
+  return false;
+}
+
+function pointNearPolygon(px, py, radius, verts) {
+  if (pointInPolygon(px, py, verts)) return true;
+  for (var i = 0; i < verts.length - 1; i++) {
+    if (distPointToSegment(px, py, verts[i][0], verts[i][1], verts[i+1][0], verts[i+1][1]) < radius)
+      return true;
+  }
+  return false;
+}
+
+function pointInPolygon(px, py, verts) {
+  var inside = false;
+  for (var i = 0, j = verts.length - 1; i < verts.length; j = i++) {
+    var xi = verts[i][0], yi = verts[i][1];
+    var xj = verts[j][0], yj = verts[j][1];
+    if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi))
+      inside = !inside;
+  }
+  return inside;
+}
+
+function distPointToSegment(px, py, ax, ay, bx, by) {
+  var dx = bx - ax, dy = by - ay;
+  var lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return Math.sqrt((px - ax) ** 2 + (py - ay) ** 2);
+  var t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq));
+  var cx = ax + t * dx, cy = ay + t * dy;
+  return Math.sqrt((px - cx) ** 2 + (py - cy) ** 2);
 }
 
 document.getElementById("btn-ai-step").onclick = aiStep;
 document.getElementById("btn-pass").onclick = passPhase;
 document.getElementById("btn-reset").onclick = resetGame;
+document.getElementById("btn-confirm-deploy").onclick = confirmDeploy;
 
 function lighten(hex, amt) {
-  var r = parseInt(hex.slice(1, 3), 16);
-  var g = parseInt(hex.slice(3, 5), 16);
-  var b = parseInt(hex.slice(5, 7), 16);
+  var r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
   r = Math.min(255, r + Math.round(amt * 255));
   g = Math.min(255, g + Math.round(amt * 255));
   b = Math.min(255, b + Math.round(amt * 255));
   return "rgb(" + r + "," + g + "," + b + ")";
 }
-
-// On page load, just show the pregame overlay. No fetchState until user chooses.
 </script>
 </body>
 </html>

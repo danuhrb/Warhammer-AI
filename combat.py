@@ -2,7 +2,7 @@ from __future__ import annotations
 import numpy as np
 from typing import Dict, Any, List, Optional
 from wh_types import GameState, Unit, Weapon, Squad
-from los import has_los
+from los import has_los, has_cover
 
 
 def roll_d6(rng: np.random.RandomState, n: int) -> np.ndarray:
@@ -137,9 +137,11 @@ def resolve_shooting(state: GameState, shooter: Unit, target: Unit,
     wound_rolls = roll_d6(rng, hits)
     wounds = int((wound_rolls >= need_w).sum())
 
-    # 3) Saves (use target's save -- in a squad, all models share the same
-    #    save profile for simplicity; real 40K uses the allocated model's save)
-    need_sv = save_needed(target.Sv, weapon.ap)
+    effective_ap = weapon.ap
+    if has_cover(state, shooter, target):
+        effective_ap = max(0, weapon.ap - 1)
+
+    need_sv = save_needed(target.Sv, effective_ap)
     if need_sv <= 6:
         save_rolls = roll_d6(rng, wounds)
         failed = int((save_rolls < need_sv).sum())
@@ -166,4 +168,43 @@ def resolve_shooting(state: GameState, shooter: Unit, target: Unit,
         result["damage"] = damage_pool
 
     result.update({"hits": hits, "wounds": wounds, "failed_saves": failed})
+    return result
+
+
+def resolve_shooting_manual(state: GameState, shooter: Unit, target: Unit,
+                            weapon: Weapon,
+                            hits: int, wounds: int, failed_saves: int) -> Dict[str, Any]:
+    """Resolve shooting with player-provided dice results."""
+    result = {
+        "attacks": weapon.attacks, "hits": hits, "wounds": wounds,
+        "failed_saves": failed_saves, "damage": 0,
+        "models_killed": 0, "note": "",
+    }
+    if not shooter.alive or not target.alive:
+        result["note"] = "one model dead"
+        return result
+    if not within_range(shooter, target, weapon):
+        result["note"] = "out of range"
+        return result
+    if not has_los(state, shooter, target):
+        result["note"] = "no LOS"
+        return result
+
+    damage_pool = failed_saves * weapon.damage
+    squad = state.squads.get(target.squad_id) if target.squad_id >= 0 else None
+
+    if squad is not None and squad.alive:
+        alloc_order = _get_allocation_order(squad, state, shooter)
+        alloc_result = _allocate_damage(damage_pool, alloc_order, state,
+                                        weapon.damage)
+        _update_squad_alive(squad, state)
+        result["damage"] = alloc_result["damage_applied"]
+        result["models_killed"] = alloc_result["models_killed"]
+    else:
+        target.W = max(0, target.W - damage_pool)
+        if target.W == 0:
+            target.alive = False
+            result["models_killed"] = 1
+        result["damage"] = damage_pool
+
     return result

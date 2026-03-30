@@ -31,17 +31,20 @@ from unit_data import (
     create_tau_army, create_ultramarine_army, create_blood_angels_army,
     army_points,
 )
+from terrain import generate_terrain
 
 MAX_STEPS_PER_GAME = MAX_TURNS * 2 * 4 * MAX_UNITS_PER_PLAYER * 2
 
 
 def _default_armies(points_limit: int = 1000,
-                    table_size: tuple = (44.0, 60.0)):
+                    table_size: tuple = (44.0, 60.0),
+                    rng: np.random.RandomState = None):
     p0_units, p0_squads = create_tau_army(owner=0, points_limit=points_limit,
                                           table_size=table_size)
     p1_units, p1_squads = create_blood_angels_army(owner=1, points_limit=points_limit,
                                                     table_size=table_size)
-    return p0_units, p0_squads, p1_units, p1_squads
+    terrain = generate_terrain(table_size=table_size, num_pieces=6, rng=rng)
+    return p0_units, p0_squads, p1_units, p1_squads, terrain
 
 
 # ---------------------------------------------------------------------------
@@ -85,8 +88,10 @@ class Warhammer40kAEC(AECEnv):
             self.engine.rng = np.random.RandomState(seed)
 
         pts = self.engine.cfg.points_limit
-        p0_units, p0_squads, p1_units, p1_squads = _default_armies(pts)
-        self.engine.reset(p0_units, p1_units, p0_squads, p1_squads)
+        p0_units, p0_squads, p1_units, p1_squads, terrain = _default_armies(
+            pts, rng=self.engine.rng)
+        self.engine.reset(p0_units, p1_units, p0_squads, p1_squads,
+                          terrain=terrain)
 
         self.agents = list(self.possible_agents)
         self._agent_selector = agent_selector(self.agents)
@@ -194,8 +199,10 @@ class Warhammer40kEnv(gym.Env):
             self.engine.rng = np.random.RandomState(seed)
 
         pts = self.engine.cfg.points_limit
-        p0_units, p0_squads, p1_units, p1_squads = _default_armies(pts)
-        self.engine.reset(p0_units, p1_units, p0_squads, p1_squads)
+        p0_units, p0_squads, p1_units, p1_squads, terrain = _default_armies(
+            pts, rng=self.engine.rng)
+        self.engine.reset(p0_units, p1_units, p0_squads, p1_squads,
+                          terrain=terrain)
         self._reward_calc.reset(self.engine)
         self._step_count = 0
 

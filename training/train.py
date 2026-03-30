@@ -4,16 +4,13 @@ Training entry point for Warhammer 40K RL agent.
 
 Usage:
   # Phase 1: Train against random opponent
-  python -m training.train --opponent random --timesteps 200000
+  python -m training.train --opponent random --timesteps 500000
 
-  # Phase 2: Train against heuristic opponent
-  python -m training.train --opponent heuristic --timesteps 500000
-
-  # Phase 3: Self-play training
-  python -m training.train --opponent self-play --timesteps 1000000
+  # Phase 2: Self-play training (long run)
+  python -m training.train --opponent self-play --timesteps 5000000
 
   # Resume from checkpoint
-  python -m training.train --opponent self-play --timesteps 500000 --resume models/wh40k_agent
+  python -m training.train --opponent self-play --timesteps 5000000 --resume models/wh40k_agent_final
 """
 from __future__ import annotations
 import argparse
@@ -55,14 +52,14 @@ def main():
     parser = argparse.ArgumentParser(description="Train WH40K RL Agent")
     parser.add_argument("--opponent", choices=["random", "heuristic", "self-play"],
                         default="random")
-    parser.add_argument("--timesteps", type=int, default=200_000)
+    parser.add_argument("--timesteps", type=int, default=500_000)
     parser.add_argument("--resume", type=str, default=None,
                         help="Path to model checkpoint to resume from")
     parser.add_argument("--save-dir", type=str, default="models")
     parser.add_argument("--log-dir", type=str, default="logs")
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--self-play-freq", type=int, default=20_000,
-                        help="Steps between self-play snapshots")
+    parser.add_argument("--self-play-freq", type=int, default=100_000,
+                        help="Steps between self-play opponent snapshots")
     args = parser.parse_args()
 
     os.makedirs(args.save_dir, exist_ok=True)
@@ -78,8 +75,8 @@ def main():
             "MlpPolicy",
             env,
             learning_rate=3e-4,
-            n_steps=2048,
-            batch_size=64,
+            n_steps=4096,
+            batch_size=128,
             n_epochs=10,
             gamma=0.99,
             gae_lambda=0.95,
@@ -92,22 +89,30 @@ def main():
 
     callbacks = [
         CheckpointCallback(
-            save_freq=50_000,
+            save_freq=100_000,
             save_path=args.save_dir,
             name_prefix="wh40k_agent",
         ),
     ]
 
     if args.opponent == "self-play":
+        # Clean stale opponent snapshots from prior incompatible runs
+        opp_dir = os.path.join(args.save_dir, "opponents")
+        if os.path.exists(opp_dir) and not args.resume:
+            import shutil
+            shutil.rmtree(opp_dir)
+            print(f"Cleared stale opponents in {opp_dir}")
+
         callbacks.append(
             SelfPlayCallback(
                 save_freq=args.self_play_freq,
-                opponent_dir=os.path.join(args.save_dir, "opponents"),
+                opponent_dir=opp_dir,
                 verbose=1,
             )
         )
 
     print(f"Training: opponent={args.opponent}, timesteps={args.timesteps}")
+    print(f"  n_steps={model.n_steps}, batch_size={model.batch_size}, lr={model.learning_rate}")
     model.learn(
         total_timesteps=args.timesteps,
         callback=callbacks,
